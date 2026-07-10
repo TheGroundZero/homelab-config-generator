@@ -186,6 +186,12 @@ After editing, regenerate all files:
 python3 scripts/scaffold-homelab-batch.py --manifest scripts/apps.yaml --force
 ```
 
+### Manifest & workspace validation
+
+- The scaffolder now requires the manifest file to live inside the declared `--workspace`. If the manifest is outside the workspace the tool will refuse to run. This prevents accidental or malicious loading of files outside the project.
+- Relative host volume paths are resolved under the workspace and will be rejected if they would escape the workspace (no `../` traversal). Absolute host paths are allowed but the scaffolder may not attempt to create POSIX-rooted paths when running on Windows.
+- If you need to generate from a manifest located elsewhere, run the script with `--workspace` set to the manifest's parent directory or copy the manifest into the workspace first.
+
 ### Notes on `userns` and data/device permissions
 
 - `userns: keep-id` (recommended default) helps avoid host-owned root files by mapping the calling user's UID into the container. It works well with host users added to device groups (e.g., `dialout` for serial devices) because container processes will be able to access the device using your host group membership.
