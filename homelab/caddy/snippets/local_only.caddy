@@ -1,0 +1,12 @@
+(local_only) {
+    @not_local {
+        not remote_ip 10.0.0.0/8
+        not remote_ip 172.16.0.0/12
+        not remote_ip 192.168.0.0/16
+        not remote_ip 100.64.0.0/10
+    }
+
+    respond @not_local 403 {
+        body "Forbidden"
+    }
+}

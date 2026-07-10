@@ -1,0 +1,7 @@
+{
+    auto_https off
+    email you@mydomain.tld
+}
+
+import /etc/caddy/snippets/*.caddy
+import /etc/caddy/sites/*.caddy
