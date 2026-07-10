@@ -12,6 +12,9 @@ passwd:
         - dialout
       shell: /bin/bash
 storage:
+  files:
+    - path: /var/lib/systemd/linger/core
+      mode: 0644
   trees:
     - local: .config/containers/systemd
       path: /home/core/.config/containers/systemd
