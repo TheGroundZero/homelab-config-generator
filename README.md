@@ -167,6 +167,7 @@ apps:
 | `volumes` | list | Mount format: `homelab/app:/container/path:z` (relative paths with WorkingDirectory=~) |
 | `devices` | list | Device mappings (optional): `[host:/container, ...]` for USB/hardware pass-through |
 | `requires` | list | Service dependencies: generates `After=` and `Wants=` in systemd unit |
+| `userns` | string | `keep-id` (default) or `none` — controls Podman user namespace mapping for the container |
 
 ### Customization
 
@@ -177,11 +178,25 @@ Edit `scripts/apps.yaml` to:
 - **Add device mounting**: Add entries to `devices:` (e.g., Zigbee coordinator, Bluetooth adapter)
 - **Adjust network**: Change `network:` to `homelab.network` or `host`
 - **Set service dependencies**: Add `requires:` for apps that depend on others
+ - **User namespace mapping**: Add `userns:` to control Podman user namespace behavior. Recommended default is `keep-id` (maps the invoking host user's UID into the container user namespace so files the container creates are owned by your host user). Use `userns: none` for services that must be rootful (for example, `Network=host` apps or when accessing devices that require root privileges). If a service run with `keep-id` still has ownership issues (common with images that run as non-root internal UIDs like Postgres), either set `userns: none` or chown the host data directory to the expected container UID before first run (see notes below).
 
 After editing, regenerate all files:
 
 ```sh
 python3 scripts/scaffold-homelab-batch.py --manifest scripts/apps.yaml --force
+```
+
+### Notes on `userns` and data/device permissions
+
+- `userns: keep-id` (recommended default) helps avoid host-owned root files by mapping the calling user's UID into the container. It works well with host users added to device groups (e.g., `dialout` for serial devices) because container processes will be able to access the device using your host group membership.
+- `userns: none` disables user namespace remapping and runs the container with full root inside–root on the host mapping. Use this for:
+  - `network: host` services that require host networking
+  - Containers that must access host devices with kernel-level permissions and cannot rely on host-group membership
+- For `postgres` and other DB images: if you use `userns: keep-id` and see permission problems on the data directory, fix by either chowning the data directory to the DB UID or switch that app to `userns: none`:
+
+```sh
+# Example: chown postgres data directory to UID 999 inside container
+podman unshare chown -R 999:999 homelab/postgres/data
 ```
 
 ### Device mounting

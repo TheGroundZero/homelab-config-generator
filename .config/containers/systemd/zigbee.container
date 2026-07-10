@@ -9,9 +9,9 @@ Wants=mqtt.service auth.service network-online.target
 [Container]
 ContainerName=zigbee
 Image=docker.io/koenkk/zigbee2mqtt:latest
-
 Network=homelab.network
 PublishPort=8081:8080
+Userns=keep-id
 
 EnvironmentFile=homelab/zigbee/zigbee.env
 Environment=TZ=Europe/Brussels

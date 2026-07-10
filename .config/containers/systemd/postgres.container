@@ -9,9 +9,9 @@ Wants=network-online.target
 [Container]
 ContainerName=postgres
 Image=docker.io/library/postgres:16-alpine
-
 Network=homelab.network
 PublishPort=5432:5432
+Userns=keep-id
 
 EnvironmentFile=homelab/postgres/postgres.env
 Environment=TZ=Europe/Brussels

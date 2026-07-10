@@ -9,11 +9,11 @@ Wants=network-online.target
 [Container]
 ContainerName=caddy
 Image=localhost/caddy-custom:latest
-
 Network=homelab.network
 PublishPort=8080:80
 PublishPort=8443:443
 PublishPort=8443:443/udp
+Userns=keep-id
 
 EnvironmentFile=homelab/caddy/caddy.env
 Environment=TZ=Europe/Brussels

@@ -9,9 +9,9 @@ Wants=auth.service network-online.target
 [Container]
 ContainerName=speedtest
 Image=lscr.io/linuxserver/speedtest-tracker:latest
-
 Network=homelab.network
 PublishPort=8082:80
+Userns=keep-id
 
 EnvironmentFile=homelab/speedtest/speedtest.env
 Environment=TZ=Europe/Brussels

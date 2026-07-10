@@ -9,9 +9,9 @@ Wants=network-online.target
 [Container]
 ContainerName=mqtt
 Image=docker.io/eclipse-mosquitto:latest
-
 Network=homelab.network
 PublishPort=1883:1883
+Userns=keep-id
 
 EnvironmentFile=homelab/mqtt/mqtt.env
 Environment=TZ=Europe/Brussels

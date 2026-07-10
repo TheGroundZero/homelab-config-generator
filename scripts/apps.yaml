@@ -1,6 +1,7 @@
 defaults:
   timezone: Europe/Brussels
   update: registry
+  userns: keep-id
 
 apps:
   # Reverse proxy
@@ -42,6 +43,7 @@ apps:
   - name: homeassistant
     image: ghcr.io/home-assistant/home-assistant:stable
     network: host
+    userns: none
     ports:
       - 8123
     subdomain: ha
@@ -84,6 +86,7 @@ apps:
   - name: esphome
     image: docker.io/esphome/esphome:latest
     network: host
+    userns: none
     ports:
       - 6052
     subdomain: esphome

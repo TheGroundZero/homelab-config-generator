@@ -9,8 +9,8 @@ Wants=network-online.target
 [Container]
 ContainerName=esphome
 Image=docker.io/esphome/esphome:latest
-
 Network=host
+Userns=none
 
 EnvironmentFile=homelab/esphome/esphome.env
 Environment=TZ=Europe/Brussels

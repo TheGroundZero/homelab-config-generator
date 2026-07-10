@@ -9,8 +9,8 @@ Wants=network-online.target
 [Container]
 ContainerName=homeassistant
 Image=ghcr.io/home-assistant/home-assistant:stable
-
 Network=host
+Userns=none
 
 EnvironmentFile=homelab/homeassistant/homeassistant.env
 Environment=TZ=Europe/Brussels

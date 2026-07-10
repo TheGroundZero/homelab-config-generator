@@ -9,10 +9,10 @@ Wants=postgres.service network-online.target
 [Container]
 ContainerName=auth
 Image=ghcr.io/goauthentik/server:latest
-
 Network=homelab.network
 PublishPort=9000:9000
 PublishPort=9443:9443
+Userns=keep-id
 
 EnvironmentFile=homelab/auth/auth.env
 Environment=TZ=Europe/Brussels
