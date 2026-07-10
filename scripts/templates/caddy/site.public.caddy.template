@@ -1,0 +1,5 @@
+{{FQDN}} {
+    import default_headers
+
+    reverse_proxy {{UPSTREAM}}
+}

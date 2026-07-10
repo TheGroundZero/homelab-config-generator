@@ -1,0 +1,6 @@
+{{FQDN}} {
+    import local_only
+    import default_headers
+
+    reverse_proxy {{UPSTREAM}}
+}

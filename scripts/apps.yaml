@@ -1,0 +1,137 @@
+defaults:
+  timezone: Europe/Brussels
+  update: registry
+
+apps:
+  # Reverse proxy
+  - name: caddy
+    image: localhost/caddy-custom:latest
+    network: homelab.network
+    ports:
+      - 8080:80
+      - 8443:443
+      - 8443:443/udp
+    subdomain: caddy
+    exposure: public
+    auth: no
+    volumes:
+      - homelab/caddy/conf:/etc/caddy:z
+      - homelab/caddy/snippets:/etc/caddy/snippets:z
+      - homelab/caddy/sites:/etc/caddy/sites:z
+      - homelab/caddy/site:/srv:z
+      - homelab/caddy/data:/data:Z
+      - homelab/caddy/config:/config:Z
+    update: local
+
+  - name: auth
+    image: ghcr.io/goauthentik/server:latest
+    network: homelab.network
+    ports:
+      - 9000:9000
+      - 9443:9443
+    subdomain: auth
+    exposure: local
+    auth: no
+    requires:
+      - postgres
+    volumes:
+      - homelab/auth/data:/data:Z
+      - homelab/auth/templates:/templates:Z
+
+  # IoT and home automation
+  - name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    network: host
+    ports:
+      - 8123
+    subdomain: ha
+    exposure: public
+    auth: no
+    volumes:
+      - homelab/homeassistant/config:/config:z
+      - /run/dbus:/run/dbus:ro
+  
+  - name: mqtt
+    image: docker.io/eclipse-mosquitto:latest
+    network: homelab.network
+    ports:
+      - 1883:1883
+    subdomain: mqtt
+    exposure: local
+    auth: no
+    volumes:
+      - homelab/mosquitto/config:/mosquitto/config:z
+      - homelab/mosquitto/data:/mosquitto/data:Z
+      - homelab/mosquitto/log:/mosquitto/log:Z
+  
+  - name: zigbee
+    image: docker.io/koenkk/zigbee2mqtt:latest
+    network: homelab.network
+    ports:
+      - 8081:8080
+    subdomain: zigbee
+    exposure: local
+    auth: yes
+    requires:
+      - mqtt
+      - auth
+    devices:
+      - /dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_xxx-port0:/dev/zigbee:rw
+    volumes:
+      - homelab/zigbee/data:/app/data:z
+      - /run/udev:/run/udev:ro
+
+  - name: esphome
+    image: docker.io/esphome/esphome:latest
+    network: host
+    ports:
+      - 6052
+    subdomain: esphome
+    exposure: local
+    auth: no
+    volumes:
+      - homelab/esphome/config:/config:z
+
+  # Development and monitoring
+  - name: code
+    image: ghcr.io/coder/code-server:latest
+    network: homelab.network
+    ports:
+      - 8084:8080
+    subdomain: code
+    exposure: local
+    auth: no
+    volumes:
+      - homelab/code/config:/config:Z
+      - homelab/homeassistant/config:/config/workspace/homeassistant:z
+      - homelab/esphome/config:/config/workspace/esphome:z
+      - homelab/caddy/config:/config/workspace/caddy:z
+      - homelab/caddy/site:/config/workspace/site:z
+      - homelab/mqtt/config:/config/workspace/mqtt:z
+      - homelab/zigbee/data:/config/workspace/zigbee:z
+
+  - name: speedtest
+    image: lscr.io/linuxserver/speedtest-tracker:latest
+    network: homelab.network
+    ports:
+      - 8082:80
+    subdomain: speedtest
+    exposure: local
+    auth: yes
+    requires:
+      - auth
+    volumes:
+      - homelab/speedtest/config:/config:Z
+      - homelab/speedtest/data:/data:Z
+
+  # Backend services (non-exposed infrastructure)
+  - name: postgres
+    image: docker.io/library/postgres:16-alpine
+    network: homelab.network
+    ports:
+      - 5432:5432
+    subdomain: postgres
+    exposure: local
+    auth: no
+    volumes:
+      - homelab/postgres/data:/var/lib/postgresql/data:Z

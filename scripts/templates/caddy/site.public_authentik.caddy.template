@@ -1,0 +1,6 @@
+{{FQDN}} {
+    import default_headers
+    import authentik
+
+    reverse_proxy {{UPSTREAM}}
+}
