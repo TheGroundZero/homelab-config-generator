@@ -15,21 +15,19 @@ import yaml
 
 
 class ManifestParser:
-    """Parse and validate homelab batch manifests."""
-    
-    def __init__(self, manifest_file: Path):
-        self.manifest_file = manifest_file
-        self.data = self._load_yaml()
-    
-    def _load_yaml(self) -> Dict[str, Any]:
-        """Load and parse YAML manifest."""
+    """Parse and validate homelab batch manifests from a YAML string.
+
+    This class no longer opens files directly; callers should validate and
+    read manifest files before instantiating ManifestParser. This design
+    eliminates file-based path-traversal risks inside the parser.
+    """
+
+    def __init__(self, manifest_text: str):
         try:
-            # Open the manifest using the exact path provided (allow non-cwd locations)
-            with open(str(self.manifest_file)) as f:
-                data = yaml.safe_load(f)
-            return data or {}
+            data = yaml.safe_load(manifest_text)
+            self.data = data or {}
         except Exception as e:
-            raise RuntimeError(f"Failed to parse manifest {self.manifest_file}: {e}")
+            raise RuntimeError(f"Failed to parse manifest content: {e}")
     
     def get_defaults(self) -> Dict[str, Any]:
         """Extract global defaults from manifest."""
@@ -199,11 +197,42 @@ class AppScaffolder:
 
             host_path_obj = Path(host_path).expanduser()
             if not host_path_obj.is_absolute():
-                host_path_obj = self.workspace_root / host_path_obj
+                # Treat POSIX-style absolute paths (starting with '/') as external
+                # and do not attempt to create them when generating on non-Linux
+                # hosts. For relative paths, resolve them under the workspace and
+                # prevent traversal outside the workspace. For absolute paths with
+                # a drive (Windows) or valid absolute paths on Linux, allow mkdir.
+                host_path_str = host_path
+                if host_path_str.startswith('/') and os.name == 'nt':
+                    # Running on Windows and manifest references a POSIX absolute
+                    # path (e.g. /run/dbus). Do not create it; leave as-is.
+                    continue
 
-            host_path_obj.mkdir(parents=True, exist_ok=True)
-            if not any(host_path_obj.iterdir()):
-                (host_path_obj / '.gitkeep').touch(exist_ok=True)
+                if not host_path_obj.is_absolute():
+                    # Resolve relative host paths under workspace_root and prevent
+                    # path traversal (../../) escaping the workspace.
+                    candidate = (self.workspace_root / host_path_obj)
+                    resolved = candidate.resolve()
+                    workspace_resolved = self.workspace_root.resolve()
+                    if not (str(resolved) == str(workspace_resolved) or str(resolved).startswith(str(workspace_resolved) + os.sep)):
+                        raise RuntimeError(f"Refusing to create volume directory outside workspace: {host_path}")
+                    host_path_obj = resolved
+                    host_path_obj.mkdir(parents=True, exist_ok=True)
+                    if not any(host_path_obj.iterdir()):
+                        (host_path_obj / '.gitkeep').touch(exist_ok=True)
+                else:
+                    # Absolute path on this OS — attempt to create (e.g., C:\path) or
+                    # resolve and create on Linux hosts.
+                    try:
+                        host_path_obj = host_path_obj.resolve()
+                        host_path_obj.mkdir(parents=True, exist_ok=True)
+                        if not any(host_path_obj.iterdir()):
+                            (host_path_obj / '.gitkeep').touch(exist_ok=True)
+                    except Exception:
+                        # If creation fails (permissions, non-existent mountpoint),
+                        # skip creating but continue — container definition can still
+                        # reference the host path.
+                        pass
 
     def _generate_container_file(self):
         """Generate Quadlet container definition."""
@@ -382,13 +411,29 @@ def main():
     args = parser.parse_args()
     
     # Validate manifest exists
-    if not args.manifest.exists():
+    # Resolve workspace and manifest paths
+    workspace_root = args.workspace.resolve()
+    manifest_path = args.manifest.resolve()
+
+    # Ensure manifest exists
+    if not manifest_path.exists():
         print(f"Error: Manifest not found: {args.manifest}", file=sys.stderr)
+        sys.exit(1)
+
+    # Security: only allow manifests that live inside the workspace root to avoid
+    # accidental path traversal / arbitrary file reads. If you need to load a
+    # manifest outside the workspace, copy it into the workspace or run the
+    # script with --workspace pointing to its parent directory.
+    try:
+        manifest_path.relative_to(workspace_root)
+    except Exception:
+        print(f"Error: Manifest {args.manifest} is outside workspace {args.workspace}", file=sys.stderr)
         sys.exit(1)
     
     # Parse manifest
     try:
-        parser_obj = ManifestParser(args.manifest)
+        manifest_text = manifest_path.read_text()
+        parser_obj = ManifestParser(manifest_text)
         apps = parser_obj.get_apps()
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)
